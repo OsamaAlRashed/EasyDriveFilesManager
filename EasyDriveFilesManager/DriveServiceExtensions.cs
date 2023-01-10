@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO.Compression;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.IO.Compression;
 using DriveFile = Google.Apis.Drive.v3.Data.File;
 using static EasyDriveFilesManager.DriveMimeTypes;
 using Google.Apis.Drive.v3;
@@ -15,7 +10,7 @@ namespace EasyDriveFilesManager;
 
 public static class DriveServiceExtensions
 {
-    public static async Task<string> UploadFile(this DriveService driveService, IFormFile formFile, string fileDescription, string parentFolderId)
+    public static async Task<string?> UploadFile(this DriveService driveService, IFormFile formFile, string fileDescription, string parentFolderId)
     {
         var filePath = Path.GetFileName(formFile.FileName);
         try
@@ -58,18 +53,24 @@ public static class DriveServiceExtensions
         }
     }
 
-    public static async Task<string> UploadFolder(this DriveService driveService, string sourcePath, string parentFolderId) 
-    {
-        
-    }
+    //public static async Task<string> UploadFolder(this DriveService driveService, string sourcePath, string parentFolderId) 
+    //{
+
+    //}
 
     public static void DownloadAllFiles(this DriveService driveService, string folderId, string path)
-        => driveService.DownloadFolderCore(folderId, path, true);
+        => driveService.DownloadAllFiles(folderId, path, int.MaxValue);
+
+    public static void DownloadAllFiles(this DriveService driveService, string folderId, string path, int depth)
+        => driveService.DownloadFolderCore(folderId, path, downloadFilesOnly: true, depth);
 
     public static void DownloadFolder(this DriveService driveService, string folderId, string path)
-        => driveService.DownloadFolderCore(folderId, path, false);
+        => driveService.DownloadFolder(folderId, path, int.MaxValue);
 
-    public static MemoryStream DownloadFile(this DriveService driveService, string fileId)
+    public static void DownloadFolder(this DriveService driveService, string folderId, string path, int depth)
+        => driveService.DownloadFolderCore(folderId, path, downloadFilesOnly: false, depth);
+
+    public static MemoryStream? DownloadFile(this DriveService driveService, string fileId)
     {
         try
         {
@@ -104,7 +105,6 @@ public static class DriveServiceExtensions
         }
         catch (Exception e)
         {
-            // TODO(developer) - handle error appropriately
             if (e is AggregateException)
             {
                 Console.WriteLine("Credential Not found");
@@ -128,7 +128,7 @@ public static class DriveServiceExtensions
             fileList.Fields = "nextPageToken, files(id, name, size, mimeType)";
 
             var result = new List<DriveFile>();
-            string pageToken = null;
+            string? pageToken = null;
             do
             {
                 fileList.PageToken = pageToken;
@@ -140,9 +140,8 @@ public static class DriveServiceExtensions
 
             return result;
         }
-        catch (Exception)
+        catch
         {
-
             throw;
         }
     }
@@ -159,19 +158,22 @@ public static class DriveServiceExtensions
         }
     }
 
-    private static void DownloadFolderCore(this DriveService driveService, string folderId, string path, bool downloadFilesOnly)
+    private static void DownloadFolderCore(this DriveService driveService, string folderId, string path, bool downloadFilesOnly, int depth)
     {
         var file = driveService.GetById(folderId);
         if (file == null)
             throw new ArgumentNullException(nameof(file));
 
+        if (depth <= 0) 
+            throw new ArgumentOutOfRangeException(nameof(depth));
+
         using (var zipArchive = new ZipArchive(File.Create(Path.Combine(path, $"{file.Name}.zip")), ZipArchiveMode.Create))
         {
-            driveService.DownloadFolderCore(folderId, zipArchive, "", downloadFilesOnly);
+            driveService.DownloadFolderCore(folderId, zipArchive, "", downloadFilesOnly, depth);
         }
     }
 
-    private static void DownloadFolderCore(this DriveService service, string folderId, ZipArchive zipArchive, string folderPath, bool downloadFilesOnly)
+    private static void DownloadFolderCore(this DriveService service, string folderId, ZipArchive zipArchive, string folderPath, bool downloadFilesOnly, int depth)
     {
         var items = service.GetByFolderId(folderId);
         var (subFolders, files) = items.Split(x => x.MimeType == "application/vnd.google-apps.folder");
@@ -180,6 +182,7 @@ public static class DriveServiceExtensions
         {
             var fullName = folderPath + file.Name + GetExtension(file.MimeType);
             var fileStream = DownloadFile(service, file.Id);
+            if (fileStream == null) continue;
 
             ZipArchiveEntry entry = zipArchive.CreateEntry(fullName);
             using (Stream zipStream = entry.Open())
@@ -196,8 +199,10 @@ public static class DriveServiceExtensions
                 var fullName = folderPath + subfolder.Name + GetExtension(subfolder.MimeType);
                 ZipArchiveEntry entry = zipArchive.CreateEntry(fullName);
             }
-
-            service.DownloadFolderCore(subfolder.Id, zipArchive, downloadFilesOnly ? "" : folderPath + subfolder.Name + "/", downloadFilesOnly);
+            if(depth-- > 0)
+            {
+                service.DownloadFolderCore(subfolder.Id, zipArchive, downloadFilesOnly ? "" : folderPath + subfolder.Name + "/", downloadFilesOnly, depth);
+            }
         }
     }
 

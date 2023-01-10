@@ -1,16 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace EasyDriveFilesManager;
+﻿namespace EasyDriveFilesManager;
 
 internal static class DriveMimeTypes
 {
-    private static bool _reversed = false;
-
-    private static Dictionary<string, string> _driveMimes = new Dictionary<string, string>(StringComparer.InvariantCultureIgnoreCase)
+    private static readonly Dictionary<string, string> driveMimes = new (StringComparer.InvariantCultureIgnoreCase)
     {
         { "/", "application/vnd.google-apps.folder" },
         { ".docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document" },
@@ -32,20 +24,13 @@ internal static class DriveMimeTypes
         { ".json", "application/vnd.google-apps.script+json" },
     };
 
-    private static Dictionary<string, string> _driveMimesReversed 
-    { 
-        get {
-            if(!_reversed)
-                return _driveMimes.ToDictionary(x => x.Value, x => x.Key);
-
-            _reversed = true;
-            return _driveMimesReversed;
-        }
-    }
+    /// TODO "Two Way Dictionary"
+    private static Dictionary<string, string> DriveMimesReversed
+        => driveMimes.ToDictionary(x => x.Value, x => x.Key);
 
     internal static string GetMime(string key)
     {
-        if(_driveMimes.TryGetValue(key, out var mime))
+        if(driveMimes.TryGetValue(key, out var mime))
             return mime;
        
         return "*/*";
@@ -53,7 +38,7 @@ internal static class DriveMimeTypes
 
     internal static string GetExtension(string key)
     {
-        if (_driveMimesReversed.TryGetValue(key, out var extension))
+        if (DriveMimesReversed.TryGetValue(key, out var extension))
             return extension;
 
         return "";

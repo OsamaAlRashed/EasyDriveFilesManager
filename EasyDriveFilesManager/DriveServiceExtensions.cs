@@ -5,10 +5,11 @@ using Google.Apis.Drive.v3;
 using Microsoft.AspNetCore.Http;
 using Google.Apis.Upload;
 using Google.Apis.Download;
+using System.IO;
 
 namespace EasyDriveFilesManager;
 
-public static class DriveServiceExtensions
+public static class DriveServiceExtensions  
 {
     public static async Task<string?> UploadFile(this DriveService driveService, IFormFile formFile, string fileDescription, string parentFolderId)
     {
@@ -53,22 +54,54 @@ public static class DriveServiceExtensions
         }
     }
 
-    //public static async Task<string> UploadFolder(this DriveService driveService, string sourcePath, string parentFolderId) 
-    //{
+    public static async Task<string?[]> UploadFiles(this DriveService driveService, List<IFormFile> formFiles, string parentFolderId)
+    {
+        List<Task<string?>> tasks = new();
+        foreach (var formFile in formFiles)
+        {
+            tasks.Add(driveService.UploadFile(formFile, "", parentFolderId));
+        }
 
-    //}
+        return await Task.WhenAll(tasks);
+    }
+
+    public static string CreateFolder(this DriveService driveService, string parentFolderId, string folderName)
+    {
+        try
+        {
+            var driveFolder = new Google.Apis.Drive.v3.Data.File
+            {
+                Name = folderName,
+                MimeType = "application/vnd.google-apps.folder",
+                Parents = new string[] { parentFolderId }
+            };
+
+            var file = driveService.Files.Create(driveFolder).Execute();
+            return file.Id;
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
 
     public static void DownloadAllFiles(this DriveService driveService, string folderId, string path)
-        => driveService.DownloadAllFiles(folderId, path, int.MaxValue);
+        => driveService.DownloadAllFiles(folderId, path, null);
 
-    public static void DownloadAllFiles(this DriveService driveService, string folderId, string path, int depth)
-        => driveService.DownloadFolderCore(folderId, path, downloadFilesOnly: true, depth);
+    public static void DownloadAllFiles(this DriveService driveService, string folderId, string path, string? name)
+        => driveService.DownloadAllFiles(folderId, path, name, int.MaxValue);
+
+    public static void DownloadAllFiles(this DriveService driveService, string folderId, string path, string? name, int depth)
+        => driveService.DownloadFolderCore(folderId, path, downloadFilesOnly: true, name, depth);
 
     public static void DownloadFolder(this DriveService driveService, string folderId, string path)
-        => driveService.DownloadFolder(folderId, path, int.MaxValue);
+       => driveService.DownloadFolder(folderId, path, null);
 
-    public static void DownloadFolder(this DriveService driveService, string folderId, string path, int depth)
-        => driveService.DownloadFolderCore(folderId, path, downloadFilesOnly: false, depth);
+    public static void DownloadFolder(this DriveService driveService, string folderId, string path, string? name)
+        => driveService.DownloadFolder(folderId, path, name, int.MaxValue);
+
+    public static void DownloadFolder(this DriveService driveService, string folderId, string path, string? name, int depth)
+        => driveService.DownloadFolderCore(folderId, path, downloadFilesOnly: false, name, depth);
 
     public static MemoryStream? DownloadFile(this DriveService driveService, string fileId)
     {
@@ -117,6 +150,7 @@ public static class DriveServiceExtensions
         return null;
     }
 
+    #region Private
     private static List<DriveFile> GetByFolderId(this DriveService driveService, string folderId)
     {
         try
@@ -158,16 +192,19 @@ public static class DriveServiceExtensions
         }
     }
 
-    private static void DownloadFolderCore(this DriveService driveService, string folderId, string path, bool downloadFilesOnly, int depth)
+    private static void DownloadFolderCore(this DriveService driveService, string folderId, string path, bool downloadFilesOnly, string? name, int depth)
     {
         var file = driveService.GetById(folderId);
         if (file == null)
             throw new ArgumentNullException(nameof(file));
 
-        if (depth <= 0) 
+        if (depth <= 0)
             throw new ArgumentOutOfRangeException(nameof(depth));
 
-        using (var zipArchive = new ZipArchive(File.Create(Path.Combine(path, $"{file.Name}.zip")), ZipArchiveMode.Create))
+        if(string.IsNullOrEmpty(name))
+            name = file.Name;
+
+        using (var zipArchive = new ZipArchive(File.Create(Path.Combine(path, $"{name}.zip")), ZipArchiveMode.Create))
         {
             driveService.DownloadFolderCore(folderId, zipArchive, "", downloadFilesOnly, depth);
         }
@@ -199,11 +236,11 @@ public static class DriveServiceExtensions
                 var fullName = folderPath + subfolder.Name + GetExtension(subfolder.MimeType);
                 ZipArchiveEntry entry = zipArchive.CreateEntry(fullName);
             }
-            if(depth-- > 0)
+            if (depth-- > 0)
             {
                 service.DownloadFolderCore(subfolder.Id, zipArchive, downloadFilesOnly ? "" : folderPath + subfolder.Name + "/", downloadFilesOnly, depth);
             }
         }
     }
-
+    #endregion
 }

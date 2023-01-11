@@ -43,8 +43,6 @@ public class UnitTest
                         }),
             ApplicationName = settings.ApplicationName
         });
-        //var provider = Startup.ConfigureService().BuildServiceProvider();
-        //_driveService = provider.GetRequiredService<DriveService>();
     }
 
     [Fact]
@@ -66,17 +64,43 @@ public class UnitTest
     }
 
     [Fact]
-    public void GivenDriveFolderId_WhenDownloadAllFiles_ThenAllFilesIsDownlodedWithoutFolders()
+    public void GivenDriveFolderId_WhenDownloadAllFiles_ThenFilesAreDownlodedWithoutFolders()
     {
-        _driveService.DownloadAllFiles("12sXAZ1EA7ocpon5Bx-fbtU7jxJgItJGi", @".\");
-        Assert.True(true);
+        var targetPath = @".\";
+        var name = Guid.NewGuid().ToString();
+        _driveService.DownloadAllFiles("12sXAZ1EA7ocpon5Bx-fbtU7jxJgItJGi", targetPath, name);
+
+        Assert.True(File.Exists($"{targetPath}{name}.zip"));
     }
 
     [Fact]
-    public void GivenDriveFolderId_WhenDownloadAllFilesWithDepth_ThenAllFilesIsDownlodedWithoutFolders()
+    public void GivenDriveFolderId_WhenDownloadAllFilesWithDepth_ThenAllFilesAreDownlodedWithoutFolders()
     {
-        _driveService.DownloadAllFiles("12sXAZ1EA7ocpon5Bx-fbtU7jxJgItJGi", @".\", 1);
-        Assert.True(true);
+        var targetPath = @".\";
+        var name = Guid.NewGuid().ToString();
+        _driveService.DownloadAllFiles("12sXAZ1EA7ocpon5Bx-fbtU7jxJgItJGi", targetPath, name, 1);
+
+        Assert.True(File.Exists($"{targetPath}{name}.zip"));
+    }
+
+    [Fact]
+    public void GivenDriveFolderId_WhenDownloadFolder_ThenAllFoldersAndFilesAreDownloded()
+    {
+        var targetPath = @".\";
+        var name = Guid.NewGuid().ToString();
+        _driveService.DownloadFolder("12sXAZ1EA7ocpon5Bx-fbtU7jxJgItJGi", targetPath, name);
+
+        Assert.True(File.Exists($"{targetPath}{name}.zip"));
+    }
+
+    [Fact]
+    public void GivenDriveFolderId_WhenDownloadFolderWithDepth_ThenFoldersAndFilesAreDownloded()
+    {
+        var targetPath = @".\";
+        var name = Guid.NewGuid().ToString();
+        _driveService.DownloadFolder("12sXAZ1EA7ocpon5Bx-fbtU7jxJgItJGi", targetPath, name, 1);
+
+        Assert.True(File.Exists($"{targetPath}{name}.zip"));
     }
 
 }

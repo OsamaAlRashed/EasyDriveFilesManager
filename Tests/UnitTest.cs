@@ -59,8 +59,8 @@ public class UnitTest
             Headers = new HeaderDictionary(),
             ContentType = "text/plain"
         };
-        var actual = await _driveService.UploadFile(file, "", "12sXAZ1EA7ocpon5Bx-fbtU7jxJgItJGi");
-        Assert.True(!string.IsNullOrEmpty(actual));
+        var actual = await _driveService.UploadFileAsync(file, "", "12sXAZ1EA7ocpon5Bx-fbtU7jxJgItJGi");
+        Assert.True(!string.IsNullOrEmpty(actual.Data));
     }
 
     [Fact]

@@ -11,42 +11,40 @@ namespace EasyDriveFilesManager;
 
 public static class DriveServiceExtensions  
 {
-    public static async Task<string?> UploadFile(this DriveService driveService, IFormFile formFile, string fileDescription, string parentFolderId)
+    public static async Task<Result<string>> UploadFileAsync(this DriveService driveService, IFormFile formFile, string fileDescription, string parentFolder)
+        => await driveService.UploadFileAsync(formFile, fileDescription, new string[] { parentFolder });
+    public static async Task<Result<string>> UploadFileAsync(this DriveService driveService, IFormFile formFile, string fileDescription, string[] parentFolders)
     {
         var filePath = Path.GetFileName(formFile.FileName);
         try
         {
-            using (var file = new FileStream(filePath, FileMode.OpenOrCreate))
+            using var file = new FileStream(filePath, FileMode.OpenOrCreate);
+            formFile.CopyTo(file);
+
+            var driveFile = new DriveFile
             {
-                formFile.CopyTo(file);
+                Name = formFile.FileName,
+                Description = fileDescription,
+                MimeType = GetMime(Path.GetExtension(formFile.FileName)),
+                Parents = parentFolders,
+            };
 
-                var driveFile = new DriveFile
-                {
-                    Name = formFile.FileName,
-                    Description = fileDescription,
-                    MimeType = GetMime(Path.GetExtension(formFile.FileName)),
-                    Parents = new string[] { parentFolderId },
-                };
+            var request = driveService.Files.Create(driveFile, file, driveFile.MimeType);
+            request.Fields = "*";
+            var results = await request.UploadAsync(CancellationToken.None);
 
-                var request = driveService.Files.Create(driveFile, file, driveFile.MimeType);
-                request.Fields = "*";
-                var results = await request.UploadAsync(CancellationToken.None);
-
-                if (results.Status == UploadStatus.Failed)
-                {
-                    Console.WriteLine($"Error uploading file: {results.Exception.Message}");
-                    return null;
-                }
-                var id = request.ResponseBody?.Id;
-
-                file.Close();
-
-                return id;
+            if (results.Status == UploadStatus.Failed)
+            {
+                return Result.Failed<string>($"Error uploading file: {results.Exception.Message}");
             }
+
+            file.Close();
+
+            return request.ResponseBody.Id;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            return null;
+            return Result.Failed<string>(ex);
         }
         finally
         {
@@ -54,18 +52,26 @@ public static class DriveServiceExtensions
         }
     }
 
-    public static async Task<string?[]> UploadFiles(this DriveService driveService, List<IFormFile> formFiles, string parentFolderId)
+    public static async Task<Result<List<string>>> UploadFilesAsync(this DriveService driveService, List<IFormFile> formFiles, string parentFolder)
+        => await driveService.UploadFilesAsync(formFiles, new string[] { parentFolder });
+
+    public static async Task<Result<List<string>>> UploadFilesAsync(this DriveService driveService, List<IFormFile> formFiles, string[] parentFolders)
     {
-        List<Task<string?>> tasks = new();
+        var tasks = new List<Task<Result<string>>>();
         foreach (var formFile in formFiles)
         {
-            tasks.Add(driveService.UploadFile(formFile, "", parentFolderId));
+            tasks.Add(driveService.UploadFileAsync(formFile, "", parentFolders));
         }
 
-        return await Task.WhenAll(tasks);
+        var results = await Task.WhenAll(tasks);
+
+        return Result.Aggregate(results.ToList());
     }
 
-    public static string CreateFolder(this DriveService driveService, string parentFolderId, string folderName)
+    public static Result<string> CreateFolder(this DriveService driveService, string folderName, string parentFolder)
+        => driveService.CreateFolder(folderName, new string[] { parentFolder });
+
+    public static Result<string> CreateFolder(this DriveService driveService, string folderName, string[] parentFolders)
     {
         try
         {
@@ -73,15 +79,15 @@ public static class DriveServiceExtensions
             {
                 Name = folderName,
                 MimeType = "application/vnd.google-apps.folder",
-                Parents = new string[] { parentFolderId }
+                Parents = parentFolders
             };
 
             var file = driveService.Files.Create(driveFolder).Execute();
             return file.Id;
         }
-        catch (Exception)
+        catch (Exception ex)
         {
-            return null;
+            return Result.Failed<string>(ex);
         }
     }
 

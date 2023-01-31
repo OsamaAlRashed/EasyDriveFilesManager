@@ -170,6 +170,7 @@ namespace EasyDriveFilesManager
 
             return true;
         }
+        
         public static Result<MemoryStream> DownloadFolder(this DriveService driveService, string folderId)
             => driveService.DownloadFolder(folderId, int.MaxValue);
 
@@ -199,6 +200,30 @@ namespace EasyDriveFilesManager
                 return Result.Failed<MemoryStream>(ex);
             }
         }
+        
+        public static Result<bool> DownloadFile(this DriveService driveService, string fileId, string path)
+            => driveService.DownloadFile(fileId, path, null);
+        
+        public static Result<bool> DownloadFile(this DriveService driveService, string fileId, string path, string name)
+        {
+            var file = driveService.GetById(fileId);
+            if (file == null)
+                return Result.Failed<bool>("File not exist.");
+
+            var downloadResult = driveService.DownloadFile(fileId);
+            if (!downloadResult.IsSucceded)
+            {
+                return Result.Failed<bool>(downloadResult.Message);
+            }
+
+            var memoryStream = downloadResult.Data;
+            var fileName = name ?? file.Name;
+
+            SaveStream(memoryStream, path, fileName);
+
+            return true;
+        }
+
         #endregion
 
         #region Private

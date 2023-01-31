@@ -4,6 +4,7 @@
     <TargetFramework>netstandard2.1</TargetFramework>
     <Version>1.0.1</Version>
     <Authors>Osama Al-Rashed</Authors>
+    <Description>It is a collection of extension methods of DriveService that contained in Google.Apis.Drive.v3, these methods help you to manage files easily.</Description>
   </PropertyGroup>
 
   <ItemGroup>

@@ -27,7 +27,7 @@ namespace EasyDriveFilesManager
         /// <param name="driveService">The drive service.</param>
         /// <param name="folderId">Drive folder id</param>
         /// <returns>Returns result object with file drive id if the operation succeeded.</returns>
-        public static async Task<Result<string>> CompressFolder(this DriveService driveService, string folderId)
+        public static async Task<Result<string>> CompressFolderAsync(this DriveService driveService, string folderId)
         {
             var folder = driveService.GetById(folderId);
             if(folder == null)

@@ -15,6 +15,7 @@ namespace EasyDriveFilesManager
 {
     public static class DriveServiceExtensions
     {
+        #region Upload File(s)
         public static async Task<Result<string>> UploadFileAsync(this DriveService driveService, IFormFile formFile, string fileDescription, string parentFolder)
             => await driveService.UploadFileAsync(formFile, fileDescription, new string[] { parentFolder });
 
@@ -73,6 +74,9 @@ namespace EasyDriveFilesManager
             return Result.Aggregate(results.ToList());
         }
 
+        #endregion
+
+        #region Create Folder
         public static Result<string> CreateFolder(this DriveService driveService, string folderName, string parentFolder)
             => driveService.CreateFolder(folderName, new string[] { parentFolder });
 
@@ -96,24 +100,85 @@ namespace EasyDriveFilesManager
             }
         }
 
-        public static void DownloadAllFiles(this DriveService driveService, string folderId, string path)
-            => driveService.DownloadAllFiles(folderId, path, null);
+        #endregion
 
-        public static void DownloadAllFiles(this DriveService driveService, string folderId, string path, string? name)
+        #region Download All Files
+        public static Result<bool> DownloadAllFiles(this DriveService driveService, string folderId, string path)
+            => driveService.DownloadAllFiles(folderId, path);
+
+        public static Result<bool> DownloadAllFiles(this DriveService driveService, string folderId, string path, string name)
             => driveService.DownloadAllFiles(folderId, path, name, int.MaxValue);
 
-        public static void DownloadAllFiles(this DriveService driveService, string folderId, string path, string? name, int depth)
-            => driveService.DownloadFolderCore(folderId, path, downloadFilesOnly: true, name, depth);
+        public static Result<bool> DownloadAllFiles(this DriveService driveService, string folderId, string path, int depth)
+            => driveService.DownloadAllFiles(folderId, path, null, depth);
 
-        public static void DownloadFolder(this DriveService driveService, string folderId, string path)
-           => driveService.DownloadFolder(folderId, path, null);
+        public static Result<bool> DownloadAllFiles(this DriveService driveService, string folderId, string path, string name, int depth)
+        {
+            var file = driveService.GetById(folderId);
+            if (file == null)
+                return Result.Failed<bool>("File not exist.");
 
-        public static void DownloadFolder(this DriveService driveService, string folderId, string path, string? name)
+            var downloadResult = driveService.DownloadAllFiles(folderId, depth);
+            if (!downloadResult.IsSucceded)
+            {
+                return Result.Failed<bool>(downloadResult.Message);
+            }
+
+            var memoryStream = downloadResult.Data;
+            var fileName = name ?? file.Name;
+
+            SaveStream(memoryStream, path, fileName);
+
+            return true;
+        }
+
+        public static Result<MemoryStream> DownloadAllFiles(this DriveService driveService, string folderId)
+            => driveService.DownloadAllFiles(folderId, int.MaxValue);
+
+        public static Result<MemoryStream> DownloadAllFiles(this DriveService driveService, string folderId, int depth)
+            => driveService.DownloadFolderCore(folderId, downloadFilesOnly: true, depth);
+
+        #endregion
+
+        #region Download Folder
+
+        public static Result<bool> DownloadFolder(this DriveService driveService, string folderId, string path)
+            => driveService.DownloadFolder(folderId, path);
+
+        public static Result<bool> DownloadFolder(this DriveService driveService, string folderId, string path, string name)
             => driveService.DownloadFolder(folderId, path, name, int.MaxValue);
 
-        public static void DownloadFolder(this DriveService driveService, string folderId, string path, string? name, int depth)
-            => driveService.DownloadFolderCore(folderId, path, downloadFilesOnly: false, name, depth);
+        public static Result<bool> DownloadFolder(this DriveService driveService, string folderId, string path, int depth)
+            => driveService.DownloadFolder(folderId, path, null, depth);
 
+        public static Result<bool> DownloadFolder(this DriveService driveService, string folderId, string path, string name, int depth)
+        {
+            var file = driveService.GetById(folderId);
+            if (file == null)
+                return Result.Failed<bool>("File not exist.");
+
+            var downloadResult = driveService.DownloadFolder(folderId, depth);
+            if (!downloadResult.IsSucceded)
+            {
+                return Result.Failed<bool>(downloadResult.Message);
+            }
+
+            var memoryStream = downloadResult.Data;
+            var fileName = name ?? file.Name;
+
+            SaveStream(memoryStream, path, fileName);
+
+            return true;
+        }
+        public static Result<MemoryStream> DownloadFolder(this DriveService driveService, string folderId)
+            => driveService.DownloadFolder(folderId, int.MaxValue);
+
+        public static Result<MemoryStream> DownloadFolder(this DriveService driveService, string folderId, int depth)
+            => driveService.DownloadFolderCore(folderId, downloadFilesOnly: true, depth);
+
+        #endregion
+
+        #region Download File
         public static Result<MemoryStream> DownloadFile(this DriveService driveService, string fileId)
         {
             try
@@ -134,6 +199,7 @@ namespace EasyDriveFilesManager
                 return Result.Failed<MemoryStream>(ex);
             }
         }
+        #endregion
 
         #region Private
         private static List<DriveFile> GetByFolderId(this DriveService driveService, string folderId)
@@ -177,22 +243,25 @@ namespace EasyDriveFilesManager
             }
         }
 
-        private static void DownloadFolderCore(this DriveService driveService, string folderId, string path, bool downloadFilesOnly, string? name, int depth)
+        private static Result<MemoryStream> DownloadFolderCore(this DriveService driveService, string folderId, bool downloadFilesOnly, int depth)
         {
-            var file = driveService.GetById(folderId);
-            if (file == null)
-                throw new ArgumentNullException(nameof(file));
-
             if (depth <= 0)
-                throw new ArgumentOutOfRangeException(nameof(depth));
+                return Result.Failed<MemoryStream>("Depth must be positive number.");
 
-            if (string.IsNullOrEmpty(name))
-                name = file.Name;
-
-            using (var zipArchive = new ZipArchive(File.Create(Path.Combine(path, $"{name}.zip")), ZipArchiveMode.Create))
+            MemoryStream memoryStream = new MemoryStream();
+            using (var zipArchive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
             {
                 driveService.DownloadFolderCore(folderId, zipArchive, "", downloadFilesOnly, depth);
             }
+            memoryStream.Position = 0;
+
+            return memoryStream;
+        }
+
+        private static void SaveStream(MemoryStream memoryStream, string path, string name)
+        {
+            using FileStream fileStream = new FileStream(Path.Combine(path, $"{name}.zip"), FileMode.Create, FileAccess.Write);
+            memoryStream.WriteTo(fileStream);
         }
 
         private static void DownloadFolderCore(this DriveService service, string folderId, ZipArchive zipArchive, string folderPath, bool downloadFilesOnly, int depth)

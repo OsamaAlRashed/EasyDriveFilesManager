@@ -1,6 +1,7 @@
 ﻿using Google.Apis.Drive.v3;
 using Google.Apis.Upload;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Internal;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -15,6 +16,32 @@ namespace EasyDriveFilesManager
 {
     public static class DriveServiceExtensions
     {
+        #region Zip Folder
+        public static async Task<Result<string>> CompressFolder(this DriveService driveService, string folderId)
+        {
+            var folder = driveService.GetById(folderId);
+            if(folder == null)
+            {
+                return Result.Failed<string>("Folder not exist.");
+            }
+
+            var downloadAsStream = driveService.DownloadFolder(folderId);
+            if (!downloadAsStream.IsSucceded)
+            {
+                return Result.Failed<string>(downloadAsStream.Message);
+            }
+
+            var memoryStream = downloadAsStream.Data;
+            var file = new FormFile(memoryStream, 0, memoryStream.Length, "Data", $"{folder.Name}.zip")
+            {
+                Headers = new HeaderDictionary(),
+                ContentType = "application/zip",
+            };
+
+            return await driveService.UploadFileAsync(file, "", folder.Parents.ToArray());
+        }
+        #endregion
+
         #region Upload File(s)
         public static async Task<Result<string>> UploadFileAsync(this DriveService driveService, IFormFile formFile, string fileDescription, string parentFolder)
             => await driveService.UploadFileAsync(formFile, fileDescription, new string[] { parentFolder });

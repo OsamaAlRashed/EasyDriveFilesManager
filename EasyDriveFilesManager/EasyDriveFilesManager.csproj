@@ -1,15 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>net7.0</TargetFramework>
-    <ImplicitUsings>enable</ImplicitUsings>
+    <TargetFramework>netstandard2.1</TargetFramework>
     <Nullable>enable</Nullable>
-    <Title>EasyDriveFilesManager</Title>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Google.Apis.Drive.v3" Version="1.58.0.2859" />
-    <PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="5.0.17" />
+    <PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="2.2.0" />
   </ItemGroup>
 
 </Project>

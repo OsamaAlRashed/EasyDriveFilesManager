@@ -1,6 +1,8 @@
-﻿namespace EasyDriveFilesManager
-{
+﻿using System;
+using System.Collections.Generic;
 
+namespace EasyDriveFilesManager
+{
     public static class Result
     {
         public static Result<T> Success<T>(T result)
@@ -33,23 +35,23 @@
 
     public sealed class Result<T> 
     {
-        public T? Data { get; set; }
-        public Exception? Exception { get; set; }
+        public T Data { get; set; }
+        public Exception Exception { get; set; }
         public ResultType Type { get; set; }
-        public string? Message { get; set; }
+        public string Message { get; set; }
 
         public bool IsSucceded => Type == ResultType.Success;
 
-        public static Result<T> Success(T? data)
-            => new() { Data = data };
+        public static Result<T> Success(T data)
+            => new Result<T>() { Data = data };
 
         public static Result<T> Failed(string message)
-           => new() { Message = message, Type = ResultType.Failed };
+           => new Result<T>() { Message = message, Type = ResultType.Failed };
 
         public static Result<T> Failed(Exception exception)
-            => new() { Message = exception.Message, Exception = exception, Type = ResultType.Failed };
+            => new Result<T>() { Message = exception.Message, Exception = exception, Type = ResultType.Failed };
 
-        public static implicit operator Result<T>(T? result)
+        public static implicit operator Result<T>(T result)
             => Success(result);
 
     }

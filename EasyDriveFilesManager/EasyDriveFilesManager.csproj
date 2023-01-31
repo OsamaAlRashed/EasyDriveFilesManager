@@ -5,7 +5,16 @@
     <Version>1.0.1</Version>
     <Authors>Osama Al-Rashed</Authors>
     <Description>It is a collection of extension methods of DriveService that contained in Google.Apis.Drive.v3, these methods help you to manage files easily.</Description>
+    <PackageProjectUrl>https://github.com/OsamaAlRashed/EasyDriveFilesManager</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Google.Apis.Drive.v3" Version="1.58.0.2859" />

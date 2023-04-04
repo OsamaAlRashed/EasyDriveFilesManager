@@ -45,7 +45,7 @@ namespace EasyDriveFilesManager
             if (DriveMimesReversed.TryGetValue(key, out var extension))
                 return extension;
 
-            return "";
+            return string.Empty;
         }
     }
 }

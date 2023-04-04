@@ -19,8 +19,7 @@ namespace EasyDriveFilesManager
     /// </summary>
     public static class DriveServiceExtensions
     {
-        #region Zip Folder
-
+        #region Compress Folder
         /// <summary>
         /// Compresses folder to zip file
         /// </summary>
@@ -31,15 +30,11 @@ namespace EasyDriveFilesManager
         {
             var folder = driveService.GetById(folderId);
             if(folder == null)
-            {
                 return Result.Failed<string>("Folder not exist.");
-            }
 
             var downloadAsStream = driveService.DownloadFolder(folderId);
             if (!downloadAsStream.IsSucceded)
-            {
                 return Result.Failed<string>(downloadAsStream.Message);
-            }
 
             var memoryStream = downloadAsStream.Data;
             var file = new FormFile(memoryStream, 0, memoryStream.Length, "Data", $"{folder.Name}.zip")
@@ -48,7 +43,7 @@ namespace EasyDriveFilesManager
                 ContentType = "application/zip",
             };
 
-            return await driveService.UploadFileAsync(file, "", folder.Parents.ToArray());
+            return await driveService.UploadFileAsync(file, string.Empty, folder.Parents.ToArray());
         }
         #endregion
 
@@ -93,9 +88,7 @@ namespace EasyDriveFilesManager
                 var results = await request.UploadAsync(CancellationToken.None);
 
                 if (results.Status == UploadStatus.Failed)
-                {
                     return Result.Failed<string>($"Error uploading file: {results.Exception.Message}");
-                }
 
                 file.Close();
 
@@ -133,7 +126,7 @@ namespace EasyDriveFilesManager
             var tasks = new List<Task<Result<string>>>();
             foreach (var formFile in formFiles)
             {
-                tasks.Add(driveService.UploadFileAsync(formFile, "", parentFolders));
+                tasks.Add(driveService.UploadFileAsync(formFile, string.Empty, parentFolders));
             }
 
             var results = await Task.WhenAll(tasks);
@@ -431,7 +424,7 @@ namespace EasyDriveFilesManager
                 fileList.Fields = "nextPageToken, files(id, name, size, mimeType)";
 
                 var result = new List<DriveFile>();
-                string? pageToken = null;
+                string pageToken = null;
                 do
                 {
                     fileList.PageToken = pageToken;
@@ -469,7 +462,7 @@ namespace EasyDriveFilesManager
             MemoryStream memoryStream = new MemoryStream();
             using (var zipArchive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
             {
-                driveService.DownloadFolderCore(folderId, zipArchive, "", downloadFilesOnly, depth);
+                driveService.DownloadFolderCore(folderId, zipArchive, string.Empty, downloadFilesOnly, depth);
             }
             memoryStream.Position = 0;
 
@@ -494,11 +487,9 @@ namespace EasyDriveFilesManager
                 if (fileStream == null) continue;
 
                 ZipArchiveEntry entry = zipArchive.CreateEntry(fullName);
-                using (Stream zipStream = entry.Open())
-                {
-                    fileStream.Position = 0;
-                    fileStream.CopyTo(zipStream);
-                }
+                using Stream zipStream = entry.Open();
+                fileStream.Position = 0;
+                fileStream.CopyTo(zipStream);
             }
 
             foreach (var subfolder in subFolders)
@@ -510,7 +501,7 @@ namespace EasyDriveFilesManager
                 }
                 if (depth-- > 0)
                 {
-                    service.DownloadFolderCore(subfolder.Id, zipArchive, downloadFilesOnly ? "" : folderPath + subfolder.Name + "/", downloadFilesOnly, depth);
+                    service.DownloadFolderCore(subfolder.Id, zipArchive, downloadFilesOnly ? string.Empty : folderPath + subfolder.Name + "/", downloadFilesOnly, depth);
                 }
             }
         }

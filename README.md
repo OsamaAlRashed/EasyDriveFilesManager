@@ -1,4 +1,4 @@
-### **EasyDriveFilesManager 1.0.1**
+### **EasyDriveFilesManager 1.0.2**
 
 It is a collection of extension methods of DriveService that contained in Google.Apis.Drive.v3, these methods help you to manage files easily.
 
@@ -16,11 +16,11 @@ Method List:
 - **DownloadAllFiles**
 - **DownloadFolder**
 - **DownloadFile**
+- **Delete Folder / File**
 
 ToDo:
 - Upload Folder.
 - Decompress Folder.
-- Delete Folder / File.
 - Update A Zip File.
 
 Enjoy .. ^_^

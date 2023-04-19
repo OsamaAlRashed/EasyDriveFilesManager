@@ -16,11 +16,10 @@ Method List:
 - **DownloadAllFiles**
 - **DownloadFolder**
 - **DownloadFile**
-
+- **Delete Folder / File**
 ToDo:
 - Upload Folder.
 - Decompress Folder.
-- Delete Folder / File.
 - Update A Zip File.
 
 Enjoy .. ^_^

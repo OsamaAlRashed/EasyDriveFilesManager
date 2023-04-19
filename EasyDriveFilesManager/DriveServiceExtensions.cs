@@ -412,6 +412,28 @@ namespace EasyDriveFilesManager
 
         #endregion
 
+        #region Delete Folder or File
+        /// <summary>
+        /// Deletes Folder Or File
+        /// </summary>
+        /// <param name="driveService">The drive service</param>
+        /// <param name="fileId">Drive folder or file id</param>
+        /// <returns>Returns result object with boolean flag</returns>
+        public static Result<bool> DeleteFolderOrFile(this DriveService driveService, string fileId)
+        {
+            try
+            {
+                driveService.Files.Delete(fileId).Execute();
+
+                return Result.Success(true);
+            }
+            catch (Exception ex)
+            {
+                return Result.Failed<bool>(ex);
+            }
+        }
+        #endregion
+
         #region Private
         private static List<DriveFile> GetByFolderId(this DriveService driveService, string folderId)
         {

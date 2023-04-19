@@ -17,7 +17,7 @@ public class UnitTest
     private readonly DriveService _driveService;
     public UnitTest()
     {
-        string json = System.IO.File.ReadAllText(@"C:\Users\osama\source\repos\EasyDriveFilesManager\Tests\Configures\settings.json");
+        string json = File.ReadAllText(@"C:\Users\osama\source\repos\EasyDriveFilesManager\Tests\Configures\settings.json");
         var settings = JsonConvert.DeserializeObject<MyDriveSettings>(json);
 
         _driveService = new DriveService(new BaseClientService.Initializer
@@ -42,7 +42,7 @@ public class UnitTest
     }
 
     [Fact]
-    public async Task WhenUploadFileToDrive_TheTheFileIsCreated()
+    public async Task WhenUploadFileToDrive_ThenTheFileIsCreated()
     {
         var ms = new MemoryStream();
         var writer = new StreamWriter(ms);

@@ -22,5 +22,7 @@ ToDo:
 - Upload Folder.
 - Decompress Folder.
 - Update A Zip File.
+- Rename Folder
+- Get Files
 
 Enjoy .. ^_^

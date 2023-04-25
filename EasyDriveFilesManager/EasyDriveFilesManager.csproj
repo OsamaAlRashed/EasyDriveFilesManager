@@ -2,7 +2,7 @@
 
   <PropertyGroup>
 	<TargetFrameworks>netcoreapp3.0;netcoreapp3.1;net5.0;net6.0;net7.0</TargetFrameworks>
-    <Version>1.0.4</Version>
+    <Version>1.0.5</Version>
     <Authors>Osama Al-Rashed</Authors>
     <Description>It is a collection of extension methods of DriveService that contained in Google.Apis.Drive.v3, these methods help you to manage files easily.</Description>
     <PackageProjectUrl>https://github.com/OsamaAlRashed/EasyDriveFilesManager</PackageProjectUrl>

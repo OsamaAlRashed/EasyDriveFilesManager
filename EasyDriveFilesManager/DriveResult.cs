@@ -33,7 +33,7 @@ namespace EasyDriveFilesManager
         }
 
         public static async Task<T> ResultAsync<T>(this Task<DriveResult<T>> result)
-            => (await result).Result;
+            => result is null ? default : (await result).Result;
 
     }
 

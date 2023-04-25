@@ -37,7 +37,7 @@ namespace EasyDriveFilesManager
 
             var file = Helpers.MemoryStreamToIFormFileAsZip(folder, downloadAsStreamResult.Result);
 
-            return await driveService.UploadFileAsync(file, string.Empty, folder.Parents.ToArray());
+            return await driveService.UploadFileAsync(file, string.Empty, folder.Parents?.ToArray());
         }
         #endregion
 
@@ -401,6 +401,34 @@ namespace EasyDriveFilesManager
             Helpers.SaveStream(memoryStream, path, fileName);
 
             return true;
+        }
+
+        #endregion
+
+        #region Rename Folder
+
+        /// <summary>
+        /// Rename a folder
+        /// </summary>
+        /// <param name="driveService">The drive service</param>
+        /// <param name="folderId">Drive folder id</param>
+        /// <param name="newName">A new name</param>
+        /// <returns>Returns the <code>Result</code> object with folder information</returns>
+        public static DriveResult<DriveFile> RenameFolder(this DriveService driveService, string folderId, string newName)
+        {
+            try
+            {
+                var folder = driveService.Files.Get(folderId).Execute();
+
+                folder.Name = newName;
+                folder.Id = null;
+
+                return driveService.Files.Update(folder, folderId).Execute();
+            }
+            catch (Exception ex)
+            {
+                return DriveResult.Failed<DriveFile>(ex);
+            }
         }
 
         #endregion

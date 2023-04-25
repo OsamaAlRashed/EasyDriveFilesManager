@@ -7,8 +7,8 @@ using Google.Apis.Auth.OAuth2;
 using Google.Apis.Services;
 using static Google.Apis.Drive.v3.DriveService;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Internal;
 using EasyDriveFilesManager;
+using Microsoft.AspNetCore.Http.Internal;
 
 namespace Tests;
 
@@ -56,7 +56,7 @@ public class UnitTest
             ContentType = "text/plain"
         };
         var actual = await _driveService.UploadFileAsync(file, "", "12sXAZ1EA7ocpon5Bx-fbtU7jxJgItJGi");
-        Assert.True(!string.IsNullOrEmpty(actual.Data));
+        Assert.True(!string.IsNullOrEmpty(actual.Result));
     }
 
     [Fact]
@@ -90,7 +90,7 @@ public class UnitTest
     }
 
     [Fact]
-    public void GivenDriveFolderId_WhenDownloadFolderWithDepth_ThenFoldersAndFilesAreDownloded()
+    public async void GivenDriveFolderId_WhenDownloadFolderWithDepth_ThenFoldersAndFilesAreDownloded()
     {
         var targetPath = @".\";
         var name = Guid.NewGuid().ToString();

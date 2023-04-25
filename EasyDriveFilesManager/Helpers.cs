@@ -1,5 +1,9 @@
-﻿using System;
+﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Internal;
+using System;
 using System.Collections.Generic;
+using System.IO;
+using DriveFile = Google.Apis.Drive.v3.Data.File;
 
 namespace EasyDriveFilesManager
 {
@@ -22,5 +26,18 @@ namespace EasyDriveFilesManager
             }
             return (leftSide, rightSide);
         }
+
+        internal static void SaveStream(MemoryStream memoryStream, string path, string name)
+        {
+            using FileStream fileStream = new FileStream(Path.Combine(path, $"{name}.zip"), FileMode.Create, FileAccess.Write);
+            memoryStream.WriteTo(fileStream);
+        }
+
+        internal static IFormFile MemoryStreamToIFormFileAsZip(DriveFile folder, MemoryStream memoryStream) 
+            => new FormFile(memoryStream, 0, memoryStream.Length, "Data", $"{folder.Name}.zip")
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = "application/zip",
+        };
     }
 }

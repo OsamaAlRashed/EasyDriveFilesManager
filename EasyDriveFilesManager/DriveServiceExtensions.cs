@@ -1,7 +1,6 @@
 ﻿using Google.Apis.Drive.v3;
 using Google.Apis.Upload;
 using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.Internal;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -431,43 +430,32 @@ namespace EasyDriveFilesManager
         #region Private
         private static List<DriveFile> GetByFolderId(this DriveService driveService, string folderId)
         {
-            try
+            var service = driveService;
+            var fileList = service.Files.List();
+
+            fileList.Q = $"'{folderId}' in parents";
+            fileList.Fields = "nextPageToken, files(id, name, size, mimeType)";
+
+            var result = new List<DriveFile>();
+            string pageToken = null;
+            do
             {
-                var service = driveService;
-                var fileList = service.Files.List();
+                fileList.PageToken = pageToken;
+                var filesResult = fileList.Execute();
+                var files = filesResult.Files;
+                pageToken = filesResult.NextPageToken;
+                result.AddRange(files);
+            } while (pageToken != null);
 
-                fileList.Q = $"'{folderId}' in parents";
-                fileList.Fields = "nextPageToken, files(id, name, size, mimeType)";
-
-                var result = new List<DriveFile>();
-                string pageToken = null;
-                do
-                {
-                    fileList.PageToken = pageToken;
-                    var filesResult = fileList.Execute();
-                    var files = filesResult.Files;
-                    pageToken = filesResult.NextPageToken;
-                    result.AddRange(files);
-                } while (pageToken != null);
-
-                return result;
-            }
-            catch
-            {
-                throw;
-            }
+            return result;
         }
 
         private static DriveFile GetById(this DriveService driveService, string fileId)
         {
-            try
-            {
-                return driveService.Files.Get(fileId).Execute();
-            }
-            catch (Exception)
-            {
-                throw;
-            }
+            if (string.IsNullOrEmpty(fileId))
+                throw new ArgumentException(nameof(fileId));
+
+            return driveService.Files.Get(fileId).Execute();
         }
 
         private static DriveResult<MemoryStream> DownloadFolderCore(this DriveService driveService, string folderId, bool downloadFilesOnly, int depth)

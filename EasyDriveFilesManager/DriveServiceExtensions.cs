@@ -483,7 +483,11 @@ namespace EasyDriveFilesManager
             if (string.IsNullOrEmpty(fileId))
                 throw new ArgumentException(nameof(fileId));
 
-            return driveService.Files.Get(fileId).Execute();
+            var request = driveService.Files.Get(fileId);
+            request.Fields = "*";
+            var file = request.Execute();
+
+            return file;
         }
 
         private static DriveResult<MemoryStream> DownloadFolderCore(this DriveService driveService, string folderId, bool downloadFilesOnly, int depth)

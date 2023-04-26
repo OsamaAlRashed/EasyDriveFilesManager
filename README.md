@@ -1,4 +1,4 @@
-### **EasyDriveFilesManager 1.0.5**
+### **EasyDriveFilesManager 1.0.6**
 
 It is a collection of extension methods of DriveService that contained in Google.Apis.Drive.v3, these methods help you to manage files easily.
 

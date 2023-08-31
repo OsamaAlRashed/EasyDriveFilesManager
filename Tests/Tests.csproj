@@ -31,4 +31,10 @@
     <ProjectReference Include="..\EasyDriveFilesManager\EasyDriveFilesManager.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Configures\settings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

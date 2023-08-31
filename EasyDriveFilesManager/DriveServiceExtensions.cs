@@ -1,4 +1,5 @@
-﻿using Google.Apis.Drive.v3;
+﻿using Google.Apis.Download;
+using Google.Apis.Drive.v3;
 using Google.Apis.Upload;
 using Microsoft.AspNetCore.Http;
 using System;
@@ -32,7 +33,7 @@ namespace EasyDriveFilesManager
                 return DriveResult.Failed<string>("The folder not found.");
 
             var downloadAsStreamResult = driveService.DownloadFolder(folderId);
-            if (!downloadAsStreamResult.IsSucceded)
+            if (!downloadAsStreamResult.IsSucceeded)
                 return DriveResult.Failed<string>(downloadAsStreamResult.Message);
 
             var file = Helpers.MemoryStreamToIFormFileAsZip(folder, downloadAsStreamResult.Result);
@@ -50,8 +51,8 @@ namespace EasyDriveFilesManager
         /// <param name="fileDescription">Description of file</param>
         /// <param name="parentFolder">Parent folder id in drive</param>
         /// <returns>Returns result object with file drive id if the operation succeeded.</returns>
-        public static async Task<DriveResult<string>> UploadFileAsync(this DriveService driveService, IFormFile formFile, string fileDescription, string parentFolder)
-            => await driveService.UploadFileAsync(formFile, fileDescription, new string[] { parentFolder });
+        public static async Task<DriveResult<string>> UploadFileAsync(this DriveService driveService, IFormFile formFile, string fileDescription, string parentFolder, Action<IUploadProgress> action = null)
+            => await driveService.UploadFileAsync(formFile, fileDescription, new string[] { parentFolder }, action);
 
         /// <summary>
         /// Uploads file to drive
@@ -61,7 +62,7 @@ namespace EasyDriveFilesManager
         /// <param name="fileDescription">Description of file</param>
         /// <param name="parentFolders">Parent folders in drive</param>
         /// <returns>Returns result object with file drive id if the operation succeeded.</returns>
-        public static async Task<DriveResult<string>> UploadFileAsync(this DriveService driveService, IFormFile formFile, string fileDescription, string[] parentFolders)
+        public static async Task<DriveResult<string>> UploadFileAsync(this DriveService driveService, IFormFile formFile, string fileDescription, string[] parentFolders, Action<IUploadProgress> action = null)
         {
             var filePath = Path.GetFileName(formFile.FileName);
             try
@@ -79,8 +80,12 @@ namespace EasyDriveFilesManager
 
                 var request = driveService.Files.Create(driveFile, file, driveFile.MimeType);
                 request.Fields = "*";
-                var results = await request.UploadAsync(CancellationToken.None);
 
+                if (action != null)
+                    request.ProgressChanged += action;
+
+                var results = await request.UploadAsync(CancellationToken.None);
+                
                 if (results.Status == UploadStatus.Failed)
                     return DriveResult.Failed<string>($"Error uploading file: {results.Exception.Message}");
 
@@ -221,7 +226,7 @@ namespace EasyDriveFilesManager
                 return DriveResult.Failed<bool>("File not exist.");
 
             var downloadResult = driveService.DownloadAllFiles(folderId, depth);
-            if (!downloadResult.IsSucceded)
+            if (!downloadResult.IsSucceeded)
             {
                 return DriveResult.Failed<bool>(downloadResult.Message);
             }
@@ -305,7 +310,7 @@ namespace EasyDriveFilesManager
                 return DriveResult.Failed<bool>("File not exist.");
 
             var downloadResult = driveService.DownloadFolder(folderId, depth);
-            if (!downloadResult.IsSucceded)
+            if (!downloadResult.IsSucceeded)
             {
                 return DriveResult.Failed<bool>(downloadResult.Message);
             }
@@ -342,55 +347,28 @@ namespace EasyDriveFilesManager
         #region Download File
 
         /// <summary>
-        /// Download a single file as memory stream.
-        /// </summary>
-        /// <param name="driveService">The drive service</param>
-        /// <param name="fileId">Drive file id</param>
-        /// <returns>Returns the <code>Result</code> object with file as memory stream if the operation succeeded.</returns>
-        public static DriveResult<MemoryStream> DownloadFile(this DriveService driveService, string fileId)
-        {
-            try
-            {
-                var file = driveService.GetById(fileId);
-                if (file == null)
-                    return DriveResult.Failed<MemoryStream>("File not exist");
-
-                var request = driveService.Files.Get(fileId);
-                var stream = new MemoryStream();
-
-                request.Download(stream);
-
-                return stream;
-            }
-            catch (Exception ex)
-            {
-                return DriveResult.Failed<MemoryStream>(ex);
-            }
-        }
-
-        /// <summary>
         /// Download a single file to specific file.
         /// </summary>
         /// <param name="driveService">The drive service</param>
         /// <param name="fileId">Drive file id</param>
         /// <returns>Returns the <code>Result</code> object with file as memory stream if the operation succeeded.</returns>
-        public static DriveResult<bool> DownloadFile(this DriveService driveService, string fileId, string path)
-            => driveService.DownloadFile(fileId, path, null);
+        public static DriveResult<bool> DownloadFile(this DriveService driveService, string fileId, string path, Action<IDownloadProgress> action = null)
+            => driveService.DownloadFile(fileId, path, null, action);
 
         /// <summary>
-        /// Download a single file to specific file.
+        /// Download a single file to specific path.
         /// </summary>
         /// <param name="driveService">The drive service</param>
         /// <param name="fileId">Drive file id</param>
         /// <returns>Returns the <code>Result</code> object with file as memory stream if the operation succeeded.</returns>
-        public static DriveResult<bool> DownloadFile(this DriveService driveService, string fileId, string path, string name)
+        public static DriveResult<bool> DownloadFile(this DriveService driveService, string fileId, string path, string name, Action<IDownloadProgress> action = null)
         {
             var file = driveService.GetById(fileId);
             if (file == null)
                 return DriveResult.Failed<bool>("File not exist.");
 
-            var downloadResult = driveService.DownloadFile(fileId);
-            if (!downloadResult.IsSucceded)
+            var downloadResult = driveService.DownloadFile(fileId, action: action);
+            if (!downloadResult.IsSucceeded)
             {
                 return DriveResult.Failed<bool>(downloadResult.Message);
             }
@@ -401,6 +379,36 @@ namespace EasyDriveFilesManager
             Helpers.SaveStream(memoryStream, path, fileName);
 
             return true;
+        }
+
+        /// <summary>
+        /// Download a single file as memory stream.
+        /// </summary>
+        /// <param name="driveService">The drive service</param>
+        /// <param name="fileId">Drive file id</param>
+        /// <returns>Returns the <code>Result</code> object with file as memory stream if the operation succeeded.</returns>
+        public static DriveResult<MemoryStream> DownloadFile(this DriveService driveService, string fileId, Action<IDownloadProgress> action = null)
+        {
+            try
+            {
+                var file = driveService.GetById(fileId);
+                if (file == null)
+                    return DriveResult.Failed<MemoryStream>("File not exist");
+
+                var request = driveService.Files.Get(fileId);
+                var stream = new MemoryStream();
+
+                if (action != null)
+                    request.MediaDownloader.ProgressChanged += action;
+
+                request.Download(stream);
+
+                return stream;
+            }
+            catch (Exception ex)
+            {
+                return DriveResult.Failed<MemoryStream>(ex);
+            }
         }
 
         #endregion

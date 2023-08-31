@@ -21,12 +21,13 @@ namespace EasyDriveFilesManager
             {
                 Result = new List<T>()
             };
+
             foreach (var result in results)
             {
-                if (result.IsSucceded)
-                    finalResult.Result.Add(result.Result);
-                else
+                if (!result.IsSucceeded)
                     return Failed<List<T>>(result.Message);
+                
+                finalResult.Result.Add(result.Result);
             }
 
             return finalResult;
@@ -44,7 +45,7 @@ namespace EasyDriveFilesManager
         public ResultType Type { get; set; }
         public string Message { get; set; }
 
-        public bool IsSucceded => Type == ResultType.Success;
+        public bool IsSucceeded => Type == ResultType.Success;
 
         public static DriveResult<T> Success(T data)
             => new DriveResult<T>() { Result = data };

@@ -8,4 +8,5 @@ public class MyDriveSettings
     public string Username { get; set; }
     public string ClientId { get; set; }
     public string ClientSecret { get; set; }
+    public string RootFolderId { get; set; }
 }

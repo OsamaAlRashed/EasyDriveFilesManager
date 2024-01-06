@@ -15,59 +15,45 @@ namespace Tests;
 public class UnitTests
 {
     private readonly DriveService _driveService;
+    private readonly string _rootFolderId;
 
     public UnitTests()
     {
         string json = File.ReadAllText(@"settings.json");
         var settings = JsonConvert.DeserializeObject<MyDriveSettings>(json);
+        _rootFolderId = settings!.RootFolderId;
 
         _driveService = new DriveService(new BaseClientService.Initializer
         {
             HttpClientInitializer = new UserCredential(
-                    new GoogleAuthorizationCodeFlow(
-                        new GoogleAuthorizationCodeFlow.Initializer
+                new GoogleAuthorizationCodeFlow(
+                    new GoogleAuthorizationCodeFlow.Initializer
+                    {
+                        ClientSecrets = new ClientSecrets
                         {
-                            ClientSecrets = new ClientSecrets
-                            {
-                                ClientId = settings!.ClientId,
-                                ClientSecret = settings.ClientSecret
-                            },
-                            Scopes = new[] { Scope.Drive },
-                        }), settings.Username, new TokenResponse
-                        {
-                            AccessToken = settings.AccessToken,
-                            RefreshToken = settings.RefreshToken,
-                        }),
+                            ClientId = settings!.ClientId,
+                            ClientSecret = settings.ClientSecret
+                        },
+                        Scopes = new[] { Scope.Drive },
+                    }), settings.Username, new TokenResponse
+                    {
+                        AccessToken = settings.AccessToken,
+                        RefreshToken = settings.RefreshToken,
+                    }),
             ApplicationName = settings.ApplicationName
         });
-    }
-
-    private static IFormFile CreateFile(int i)
-    {
-        var ms = new MemoryStream();
-        var writer = new StreamWriter(ms);
-        writer.Write("Test file content");
-        writer.Flush();
-        ms.Position = 0;
-
-        var file = new FormFile(ms, 0, ms.Length, "Data", $"test{i}.txt")
-        {
-            Headers = new HeaderDictionary(),
-            ContentType = "text/plain"
-        };
-
-        return file;
     }
 
     [Fact]
     public async Task GivenFileId_WhenDeleteFolderOrFile_ThenTheFileIsDeleted()
     {
         // Arrange
-        var file = CreateFile(1);
-        var uploadResult = await _driveService.UploadFileAsync(file, "", "12sXAZ1EA7ocpon5Bx-fbtU7jxJgItJGi", (progress) =>
-        {
-            Debug.WriteLine(progress.BytesSent);
-        });
+        var file = UnitTestsHelpers.CreateFile(1);
+        var uploadResult = await _driveService.UploadFileAsync(file, string.Empty, _rootFolderId, 
+            (progress) =>
+            {
+                Console.WriteLine(progress.BytesSent);
+            });
 
         // Act
         var actual = _driveService.DeleteFolderOrFile(uploadResult.Result);
@@ -90,26 +76,27 @@ public class UnitTests
     }
 
     [Fact]
-    public async Task GivenNewName_WhenRenameFolder_ThenTheFolderNameIsChanged()
+    public void GivenNewName_WhenRenameFolder_ThenTheFolderNameIsChanged()
     {
         // Arrange
         string newName = "New Name";
 
         // Act
-        var actual = _driveService.RenameFolder("12sXAZ1EA7ocpon5Bx-fbtU7jxJgItJGi", newName);
+        var actual = _driveService.RenameFolder(_rootFolderId, newName);
 
         // Assert
-        Assert.True(actual.Result.Name == newName);
+        Assert.True(actual.IsSucceeded);
+        Assert.Equal(newName, actual.Result.Name);
     }
 
     [Fact]
     public async Task GivenFile_WhenUploadFileToDrive_ThenTheFileIsUploaded()
     {
         // Arrange
-        var file = CreateFile(1);
+        var file = UnitTestsHelpers.CreateFile(1);
 
         // Act
-        var actual = await _driveService.UploadFileAsync(file, "", "12sXAZ1EA7ocpon5Bx-fbtU7jxJgItJGi", (progress) =>
+        var actual = await _driveService.UploadFileAsync(file, "", _rootFolderId, (progress) =>
         {
             Debug.WriteLine(progress.BytesSent);
         });
@@ -123,15 +110,15 @@ public class UnitTests
     public async Task GivenFiles_WhenUploadFilesToDrive_ThenTheFilesAreUploaded()
     {
         // Arrange
-        List<IFormFile> files = new List<IFormFile>();
+        List<IFormFile> files = new();
 
         for (int i = 2; i < 5; i++)
         {
-            files.Add(CreateFile(i));
+            files.Add(UnitTestsHelpers.CreateFile(i));
         }
         
         // Act
-        var actual = await _driveService.UploadFilesAsync(files.ToList(), "12sXAZ1EA7ocpon5Bx-fbtU7jxJgItJGi");
+        var actual = await _driveService.UploadFilesAsync(files.ToList(), _rootFolderId);
 
         // Assert
         Assert.True(actual.Result.All(x => !string.IsNullOrEmpty(x)));
@@ -141,7 +128,7 @@ public class UnitTests
     public async Task GivenFolderId_WhenCompressTheFolder_ThenTheFolderCompressedAsZipFile()
     {
         // Arrange
-        string folderId = "12sXAZ1EA7ocpon5Bx-fbtU7jxJgItJGi";
+        string folderId = _rootFolderId;
 
         // Act
         var actual = await _driveService.CompressFolderAsync(folderId);
@@ -151,43 +138,62 @@ public class UnitTests
     }
 
     [Fact]
-    public void GivenDriveFolderId_WhenDownloadAllFiles_ThenFilesAreDownlodedWithoutFolders()
+    public void GivenDriveFolderId_WhenDownloadAllFiles_ThenFilesAreDownloadedWithoutFolders()
     {
+        // Arrange
         var targetPath = @".\";
         var name = Guid.NewGuid().ToString();
-        _driveService.DownloadAllFiles("12sXAZ1EA7ocpon5Bx-fbtU7jxJgItJGi", targetPath, name);
 
+        // Act
+        var actual = _driveService.DownloadAllFiles(_rootFolderId, targetPath, name);
+
+        // Assert
         Assert.True(File.Exists($"{targetPath}{name}.zip"));
+        Assert.True(actual.IsSucceeded);
     }
 
     [Fact]
-    public void GivenDriveFolderId_WhenDownloadAllFilesWithDepth_ThenAllFilesAreDownlodedWithoutFolders()
+    public void GivenDriveFolderId_WhenDownloadAllFilesWithDepth_ThenAllFilesAreDownloadedWithoutFolders()
     {
+        // Arrange
         var targetPath = @".\";
         var name = Guid.NewGuid().ToString();
-        _driveService.DownloadAllFiles("12sXAZ1EA7ocpon5Bx-fbtU7jxJgItJGi", targetPath, name, 1);
+        
+        // Act
+        var actual = _driveService.DownloadAllFiles(_rootFolderId, targetPath, name, 1);
 
+        // Assert
         Assert.True(File.Exists($"{targetPath}{name}.zip"));
+        Assert.True(actual.IsSucceeded);
     }
 
     [Fact]
-    public void GivenDriveFolderId_WhenDownloadFolder_ThenAllFoldersAndFilesAreDownloded()
+    public void GivenDriveFolderId_WhenDownloadFolder_ThenAllFoldersAndFilesAreDownloaded()
     {
+        // Arrange
         var targetPath = @".\";
         var name = Guid.NewGuid().ToString();
-        _driveService.DownloadFolder("12sXAZ1EA7ocpon5Bx-fbtU7jxJgItJGi", targetPath, name);
 
+        // Act
+        var actual = _driveService.DownloadFolder(_rootFolderId, targetPath, name);
+
+        // Assert
         Assert.True(File.Exists($"{targetPath}{name}.zip"));
+        Assert.True(actual.IsSucceeded);
     }
 
     [Fact]
-    public void GivenDriveFolderId_WhenDownloadFolderWithDepth_ThenFoldersAndFilesAreDownloded()
+    public void GivenDriveFolderId_WhenDownloadFolderWithDepth_ThenFoldersAndFilesAreDownloaded()
     {
+        // Arrange
         var targetPath = @".\";
         var name = Guid.NewGuid().ToString();
-        _driveService.DownloadFolder("12sXAZ1EA7ocpon5Bx-fbtU7jxJgItJGi", targetPath, name, 1);
 
+        // Act
+        var actual = _driveService.DownloadFolder(_rootFolderId, targetPath, name, 1);
+
+        // Assert
         Assert.True(File.Exists($"{targetPath}{name}.zip"));
+        Assert.True(actual.IsSucceeded);
     }
-
 }

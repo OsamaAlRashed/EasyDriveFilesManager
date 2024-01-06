@@ -9,8 +9,6 @@ using static Google.Apis.Drive.v3.DriveService;
 using Microsoft.AspNetCore.Http;
 using EasyDriveFilesManager;
 using System.Diagnostics;
-using Google.Apis.Drive.v3.Data;
-using DriveFile = Google.Apis.Drive.v3.Data.File;
 using File = System.IO.File;
 namespace Tests;
 
@@ -20,7 +18,7 @@ public class UnitTests
 
     public UnitTests()
     {
-        string json = File.ReadAllText(@"C:\Users\osama\source\repos\EasyDriveFilesManager\Tests\Configures\settings.json");
+        string json = File.ReadAllText(@"settings.json");
         var settings = JsonConvert.DeserializeObject<MyDriveSettings>(json);
 
         _driveService = new DriveService(new BaseClientService.Initializer
@@ -79,7 +77,7 @@ public class UnitTests
     }
 
     [Fact]
-    public async Task GivenNull_WhenDeleteFolderOrFile_ThenReturnsFalse()
+    public void GivenNull_WhenDeleteFolderOrFile_ThenReturnsFalse()
     {
         // Arrange
         string? fileId = null;

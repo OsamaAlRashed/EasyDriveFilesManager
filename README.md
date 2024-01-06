@@ -1,4 +1,4 @@
-### **EasyDriveFilesManager 1.0.6**
+### **EasyDriveFilesManager 1.0.7**
 
 
   <table>

@@ -45,6 +45,36 @@ public class UnitTests
     }
 
     [Fact]
+    public async Task GivenFolderId_WhenCompressTheFolder_ThenTheFolderCompressedAsZipFile()
+    {
+        // Arrange
+        string folderId = _rootFolderId;
+
+        // Act
+        var actual = await _driveService.CompressFolderAsync(folderId);
+
+        // Assert
+        Assert.False(string.IsNullOrEmpty(actual.Result));
+    }
+
+    [Fact]
+    public async Task GivenFileId_WhenDownloadFile_ThenTheFileIsDownloaded()
+    {
+        // Arrange
+        var file = UnitTestsHelpers.CreateFile(1);
+
+        // Act
+        var actual = await _driveService.UploadFileAsync(file, string.Empty, new string[] { _rootFolderId }, (progress) =>
+        {
+            Debug.WriteLine(progress.BytesSent);
+        });
+
+        // Assert
+        Assert.False(string.IsNullOrEmpty(actual.Result));
+
+    }
+
+    [Fact]
     public async Task GivenFileId_WhenDeleteFolderOrFile_ThenTheFileIsDeleted()
     {
         // Arrange
@@ -60,6 +90,34 @@ public class UnitTests
 
         // Assert
         Assert.True(actual.Result);
+    }
+
+    [Fact]
+    public void GivenFolderName_WhenCreateFolder_ThenTheFolderIsCreated()
+    {
+        // Arrange
+        string folderName = $"New Folder{Random.Shared.NextInt64(100)}";
+
+        // Act
+        var result = _driveService.CreateFolder(folderName, _rootFolderId);
+
+        // Assert
+        Assert.True(result.IsSucceeded);
+        Assert.False(string.IsNullOrEmpty(result.Result));
+    }
+
+    [Fact]
+    public void GivenFolderName_WhenCreateFolderWithParents_ThenTheFolderIsCreated()
+    {
+        // Arrange
+        string folderName = $"New Folder{Random.Shared.NextInt64(100)}";
+
+        // Act
+        var result = _driveService.CreateFolder(folderName, new[] { _rootFolderId });
+
+        // Assert
+        Assert.True(result.IsSucceeded);
+        Assert.False(string.IsNullOrEmpty(result.Result));
     }
 
     [Fact]
@@ -122,19 +180,6 @@ public class UnitTests
 
         // Assert
         Assert.True(actual.Result.All(x => !string.IsNullOrEmpty(x)));
-    }
-
-    [Fact]
-    public async Task GivenFolderId_WhenCompressTheFolder_ThenTheFolderCompressedAsZipFile()
-    {
-        // Arrange
-        string folderId = _rootFolderId;
-
-        // Act
-        var actual = await _driveService.CompressFolderAsync(folderId);
-
-        // Assert
-        Assert.False(string.IsNullOrEmpty(actual.Result));
     }
 
     [Fact]

@@ -4,6 +4,9 @@ using System.Threading.Tasks;
 
 namespace EasyDriveFilesManager
 {
+    /// <summary>
+    /// Represents the result of driveService extension methods 
+    /// </summary>
     public static class DriveResult
     {
         public static DriveResult<T> Success<T>(T result)

@@ -32,7 +32,31 @@ namespace EasyDriveFilesManager
             if(folder == null)
                 return DriveResult.Failed<string>("The folder not found.");
 
-            var downloadAsStreamResult = driveService.DownloadFolder(folderId);
+            var downloadAsStreamResult = driveService.DownloadFolder(folderId, new List<string>(), new List<string>());
+            if (!downloadAsStreamResult.IsSucceeded)
+                return DriveResult.Failed<string>(downloadAsStreamResult.Message);
+
+            var file = Helpers.MemoryStreamToIFormFileAsZip(folder, downloadAsStreamResult.Result);
+
+            return await driveService.UploadFileAsync(file, string.Empty, folder.Parents?.ToArray());
+        }
+
+
+        /// <summary>
+        /// Compresses folder to zip file
+        /// </summary>
+        /// <param name="driveService">The drive service.</param>
+        /// <param name="folderId">Drive folder id</param>
+        /// <param name="extensionsToInclude"></param>
+        /// <param name="extenstionsToExclude"></param>
+        /// <returns>Returns result object with file drive id if the operation succeeded.</returns>
+        public static async Task<DriveResult<string>> CompressFolderAsync(this DriveService driveService, string folderId, List<string> extensionsToInclude, List<string> extenstionsToExclude)
+        {
+            var folder = driveService.GetById(folderId);
+            if (folder == null)
+                return DriveResult.Failed<string>("The folder not found.");
+
+            var downloadAsStreamResult = driveService.DownloadFolder(folderId, extensionsToInclude, extenstionsToExclude);
             if (!downloadAsStreamResult.IsSucceeded)
                 return DriveResult.Failed<string>(downloadAsStreamResult.Message);
 
@@ -256,7 +280,7 @@ namespace EasyDriveFilesManager
         /// <param name="depth">The depth of search.</param>
         /// <returns>Returns result object with Memory stream if the operation succeeded</returns>
         public static DriveResult<MemoryStream> DownloadAllFiles(this DriveService driveService, string folderId, int depth)
-            => driveService.DownloadFolderCore(folderId, downloadFilesOnly: true, depth);
+            => driveService.DownloadFolderCore(folderId, downloadFilesOnly: true, depth, new List<string>(), new List<string>());
 
         #endregion
 
@@ -309,7 +333,7 @@ namespace EasyDriveFilesManager
             if (file == null)
                 return DriveResult.Failed<bool>("File not exist.");
 
-            var downloadResult = driveService.DownloadFolder(folderId, depth);
+            var downloadResult = driveService.DownloadFolder(folderId, depth, new List<string>(), new List<string>());
             if (!downloadResult.IsSucceeded)
             {
                 return DriveResult.Failed<bool>(downloadResult.Message);
@@ -328,9 +352,11 @@ namespace EasyDriveFilesManager
         /// </summary>
         /// <param name="driveService">The drive service</param>
         /// <param name="folderId">Drive folder id</param>
+        /// <param name="extensionsToInclude"></param>
+        /// <param name="extenstionsToExclude"></param>
         /// <returns>Returns result object with Memory stream if the operation succeeded</returns>
-        public static DriveResult<MemoryStream> DownloadFolder(this DriveService driveService, string folderId)
-            => driveService.DownloadFolder(folderId, int.MaxValue);
+        public static DriveResult<MemoryStream> DownloadFolder(this DriveService driveService, string folderId, List<string> extensionsToInclude, List<string> extenstionsToExclude)
+            => driveService.DownloadFolder(folderId, int.MaxValue, extensionsToInclude, extenstionsToExclude);
 
         /// <summary>
         /// Downloads subfolders and files for a specific folder hierarchically as memory stream.
@@ -338,9 +364,11 @@ namespace EasyDriveFilesManager
         /// <param name="driveService">The drive service</param>
         /// <param name="folderId">Drive folder id</param>
         /// <param name="depth">The depth of search.</param>
+        /// <param name="extensionsToInclude"></param>
+        /// <param name="extenstionsToExclude"></param>
         /// <returns>Returns result object with Memory stream if the operation succeeded</returns>
-        public static DriveResult<MemoryStream> DownloadFolder(this DriveService driveService, string folderId, int depth)
-            => driveService.DownloadFolderCore(folderId, downloadFilesOnly: true, depth);
+        public static DriveResult<MemoryStream> DownloadFolder(this DriveService driveService, string folderId, int depth, List<string> extensionsToInclude, List<string> extenstionsToExclude)
+            => driveService.DownloadFolderCore(folderId, downloadFilesOnly: false, depth, extensionsToInclude, extenstionsToExclude);
 
         #endregion
 
@@ -498,25 +526,38 @@ namespace EasyDriveFilesManager
             return file;
         }
 
-        private static DriveResult<MemoryStream> DownloadFolderCore(this DriveService driveService, string folderId, bool downloadFilesOnly, int depth)
+        private static DriveResult<MemoryStream> DownloadFolderCore(this DriveService driveService, string folderId, bool downloadFilesOnly, int depth, List<string> extensionsToInclude, List<string> extenstionsToExclude)
         {
             if (depth <= 0)
                 return DriveResult.Failed<MemoryStream>("Depth must be a positive number.");
 
+            extensionsToInclude ??= new List<string>();
+            extenstionsToExclude ??= new List<string>();
+
             MemoryStream memoryStream = new MemoryStream();
             using (var zipArchive = new ZipArchive(memoryStream, ZipArchiveMode.Create, true))
             {
-                driveService.DownloadFolderCore(folderId, zipArchive, string.Empty, downloadFilesOnly, depth);
+                driveService.DownloadFolderCore(folderId, zipArchive, string.Empty, downloadFilesOnly, depth, extensionsToInclude, extenstionsToExclude);
             }
             memoryStream.Position = 0;
 
             return memoryStream;
         }
 
-        private static void DownloadFolderCore(this DriveService service, string folderId, ZipArchive zipArchive, string folderPath, bool downloadFilesOnly, int depth)
+        private static void DownloadFolderCore(this DriveService service, string folderId, ZipArchive zipArchive, string folderPath, bool downloadFilesOnly, int depth, List<string> extensionsToInclude, List<string> extenstionsToExclude)
         {
             var items = service.GetByFolderId(folderId);
             var (subFolders, files) = items.Split(x => x.MimeType == GetMime("/"));
+
+            if (extensionsToInclude.Count > 0) 
+            {
+                files = files.Where(x => extensionsToInclude.Contains(GetExtension(x.MimeType))).ToList();
+            }
+
+            if (extenstionsToExclude.Count > 0)
+            {
+                files = files.Where(x => !extenstionsToExclude.Contains(GetExtension(x.MimeType))).ToList();
+            }
 
             foreach (var file in files)
             {
@@ -539,7 +580,7 @@ namespace EasyDriveFilesManager
                 }
                 if (depth-- > 0)
                 {
-                    service.DownloadFolderCore(subfolder.Id, zipArchive, downloadFilesOnly ? string.Empty : folderPath + subfolder.Name + "/", downloadFilesOnly, depth);
+                    service.DownloadFolderCore(subfolder.Id, zipArchive, downloadFilesOnly ? string.Empty : folderPath + subfolder.Name + "/", downloadFilesOnly, depth, extensionsToInclude, extenstionsToExclude);
                 }
             }
         }

@@ -363,3 +363,5 @@ MigrationBackup/
 FodyWeavers.xsd
 /Tests/Configures/settings.json
 /Tests/settings.json
+/Tests/google-drive.json
+/Tests/settings.json

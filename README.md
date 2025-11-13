@@ -1,4 +1,4 @@
-### **EasyDriveFilesManager 1.0.7**
+### **EasyDriveFilesManager 1.0.9**
 
 
   <table>
@@ -18,7 +18,7 @@
 It is a collection of extension methods of DriveService that contained in Google.Apis.Drive.v3, these methods help you to manage files easily.
 
 **What's new??** 
-- Fix Bugs.
+- Support .NET 10.0
 
 **Documentation** 
 

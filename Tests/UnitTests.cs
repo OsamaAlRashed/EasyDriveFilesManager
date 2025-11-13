@@ -1,14 +1,11 @@
-﻿using Newtonsoft.Json;
-using Google.Apis.Drive.v3;
-using Tests.Configures;
-using Google.Apis.Auth.OAuth2.Flows;
-using Google.Apis.Auth.OAuth2.Responses;
+﻿using EasyDriveFilesManager;
 using Google.Apis.Auth.OAuth2;
+using Google.Apis.Drive.v3;
 using Google.Apis.Services;
-using static Google.Apis.Drive.v3.DriveService;
 using Microsoft.AspNetCore.Http;
-using EasyDriveFilesManager;
+using Newtonsoft.Json;
 using System.Diagnostics;
+using Tests.Configures;
 using File = System.IO.File;
 namespace Tests;
 
@@ -23,25 +20,19 @@ public class UnitTests
         var settings = JsonConvert.DeserializeObject<MyDriveSettings>(json);
         _rootFolderId = settings!.RootFolderId;
 
-        _driveService = new DriveService(new BaseClientService.Initializer
+        GoogleCredential credential;
+        using (var stream = new FileStream(settings.ServiceAccountKeyPath, FileMode.Open, FileAccess.Read))
         {
-            HttpClientInitializer = new UserCredential(
-                new GoogleAuthorizationCodeFlow(
-                    new GoogleAuthorizationCodeFlow.Initializer
-                    {
-                        ClientSecrets = new ClientSecrets
-                        {
-                            ClientId = settings!.ClientId,
-                            ClientSecret = settings.ClientSecret
-                        },
-                        Scopes = new[] { Scope.Drive },
-                    }), settings.Username, new TokenResponse
-                    {
-                        AccessToken = settings.AccessToken,
-                        RefreshToken = settings.RefreshToken,
-                    }),
+            credential = GoogleCredential.FromStream(stream)
+                                          .CreateScoped(DriveService.Scope.Drive);
+        }
+
+        _driveService = new DriveService(new BaseClientService.Initializer()
+        {
+            HttpClientInitializer = credential,
             ApplicationName = settings.ApplicationName
         });
+
     }
 
     [Fact]
@@ -137,10 +128,14 @@ public class UnitTests
     public void GivenNewName_WhenRenameFolder_ThenTheFolderNameIsChanged()
     {
         // Arrange
-        string newName = "New Name";
+        string folderName = $"New Folder{Random.Shared.NextInt64(100)}";
+        var result = _driveService.CreateFolder(folderName, new[] { _rootFolderId });
+
+        // Arrange
+        string newName = folderName + " - Renamed";
 
         // Act
-        var actual = _driveService.RenameFolder(_rootFolderId, newName);
+        var actual = _driveService.RenameFolder(result.Result, newName);
 
         // Assert
         Assert.True(actual.IsSucceeded);
